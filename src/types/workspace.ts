@@ -12,6 +12,9 @@ export interface WorkspacePhotoMeta {
   linked: boolean;
   /** Solo presente si `linked === false`. */
   ownTemplate?: OverlayTemplate;
+  /** Huella del archivo de origen para detectar reemplazos al sincronizar. */
+  fileSize?: number;
+  fileMtimeMs?: number | null;
 }
 
 /** Espacio de trabajo persistible: un lote basado en carpeta. */
@@ -48,6 +51,8 @@ export function workspaceFromProject(project: ProjectState, lastStep: WizardStep
       status: p.status,
       linked: p.linked,
       ownTemplate: p.ownTemplate,
+      fileSize: p.fileSize,
+      fileMtimeMs: p.fileMtimeMs,
     })),
     exportFormat: project.exportFormat,
     jpegQuality: project.jpegQuality,

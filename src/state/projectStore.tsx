@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from 'react';
 import type { OverlayTemplate, PhotoAsset, ProjectState } from '../types/overlay';
 import { cloneTemplate, photoTemplate } from '../types/overlay';
+import { isTauri } from '../tauri/bridge';
 
 export type Step = 'upload' | 'edit' | 'review' | 'export';
 /** Vistas principales de la app: asistente o espacios guardados. */
@@ -40,6 +41,7 @@ export type ProjectAction =
       pad: number;
     }
   | { type: 'applyToAll' }
+  | { type: 'syncFolder'; photos: PhotoAsset[] }
   | { type: 'markEdited' }
   | { type: 'setExport'; format?: 'jpeg' | 'png'; quality?: number }
   | { type: 'setExported'; photoIds: string[] }
@@ -48,8 +50,11 @@ export type ProjectAction =
   | { type: 'workspaceSavedAt'; value: number | null }
   | { type: 'workspaceSaveError'; message: string | null };
 
+/** Vista de bienvenida: espacios guardados en escritorio, asistente en web. */
+const WELCOME_VIEW: View = isTauri() ? 'workspaces' : 'wizard';
+
 export const initialStoreState: ProjectStoreState = {
-  view: 'wizard',
+  view: WELCOME_VIEW,
   step: 'upload',
   project: null,
   editingPhotoId: null,
@@ -88,7 +93,8 @@ export function projectReducer(
 ): ProjectStoreState {
   switch (action.type) {
     case 'reset':
-      return { ...initialStoreState };
+      // «Nueva sesión» vuelve al paso de carga, no a la portada.
+      return { ...initialStoreState, view: 'wizard' };
     case 'setView':
       return { ...state, view: action.view };
     case 'setProject':
@@ -181,6 +187,17 @@ export function projectReducer(
           photos: state.project.photos.map((p) => asLinked(p)),
         },
       };
+    }
+    case 'syncFolder': {
+      // Sincronización de carpeta: reemplaza el lote completo (nuevas al final,
+      // quitadas fuera, reemplazadas releídas conservando su meta).
+      if (!state.project) return state;
+      const ids = new Set(action.photos.map((p) => p.id));
+      const editingPhotoId =
+        state.editingPhotoId && ids.has(state.editingPhotoId)
+          ? state.editingPhotoId
+          : action.photos[0]?.id ?? null;
+      return { ...state, project: { ...state.project, photos: action.photos }, editingPhotoId };
     }
     case 'markEdited':
       if (!state.project) return state;

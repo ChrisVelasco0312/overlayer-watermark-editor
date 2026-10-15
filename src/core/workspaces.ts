@@ -1,7 +1,7 @@
 import { appDataDir } from '@tauri-apps/api/path';
 import { mkdir, readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { defaultOutputName, newId } from './defaults';
-import { baseNameOfPath, isTauri, listImagePathsInFolder } from '../tauri/bridge';
+import { baseNameOfPath, fingerprintChanged, isTauri, listImagePathsInFolder, statFileMeta, type FileFingerprint } from '../tauri/bridge';
 import { loadPhotoAssets, type LoadProgress, type PhotoSource, type SkippedPhoto } from './loadPhotos';
 import type { PhotoAsset, ProjectState } from '../types/overlay';
 import type { WorkspacePhotoMeta, WorkspaceSnapshot } from '../types/workspace';
@@ -225,6 +225,15 @@ export async function finishResume(
 
   const restored = photos.map((photo) => applyMeta(photo, metaByPath.get(photo.sourcePath)));
 
+  // Huella fresca (tamaño + mtime) para que futuras sincronizaciones detecten
+  // reemplazos, aunque la meta guardada no la tuviera o la ruta cambiara.
+  for (let i = 0; i < restored.length; i += 1) {
+    const fingerprint = await statFileMeta(restored[i].sourcePath);
+    if (fingerprint) {
+      restored[i] = { ...restored[i], fileSize: fingerprint.size, fileMtimeMs: fingerprint.mtimeMs };
+    }
+  }
+
   const project: ProjectState = {
     id: newId('project'),
     sourceKind: 'folder',
@@ -248,5 +257,184 @@ function applyMeta(photo: PhotoAsset, meta: WorkspacePhotoMeta | undefined): Pho
     status: meta.status,
     linked: meta.linked,
     ownTemplate: meta.ownTemplate,
+    fileSize: meta.fileSize,
+    fileMtimeMs: meta.fileMtimeMs,
   };
+}
+
+/* ── Sincronización de carpeta ── */
+
+export interface FolderSyncResult {
+  /** Lote completo tras sincronizar: originales actualizados + nuevas al final. */
+  photos: PhotoAsset[];
+  /** Fotos nuevas detectadas y ya comprimidas. */
+  added: PhotoAsset[];
+  /** Fotos que desaparecieron de la carpeta (se quitan del lote). */
+  removed: PhotoAsset[];
+  /** Fotos recargadas porque el archivo cambió de contenido (meta preservada). */
+  replaced: PhotoAsset[];
+  /** Fotos renombradas dentro de la carpeta (misma huella, ruta actualizada). */
+  renamed: PhotoAsset[];
+  skipped: SkippedPhoto[];
+  /** Mensaje si la carpeta ya no existe o no se puede leer. */
+  folderError: string | null;
+}
+
+/**
+ * Relee la carpeta del lote y la empareja contra el lote actual:
+ * - Nuevas → cargadas y añadidas al final como `pending` y vinculadas.
+ * - Desaparecidas → quitadas del lote (la edición asociada se descarta).
+ * - Reemplazadas (huella tamaño/mtime cambió) → releídas y recomprimidas,
+ *   conservando id, nombre de salida, vínculo y plantilla propia; el estado
+ *   vuelve a `pending` porque la imagen que se editó ya no es la misma.
+ * - Renombradas dentro de la carpeta → se emparejan por nombre de archivo.
+ * Las fotos intactas no se tocan.
+ */
+export async function syncFolderPhotos(
+  project: ProjectState,
+  onProgress?: (progress: LoadProgress) => void,
+): Promise<FolderSyncResult> {
+  const unchanged: FolderSyncResult = {
+    photos: project.photos,
+    added: [],
+    removed: [],
+    replaced: [],
+    renamed: [],
+    skipped: [],
+    folderError: null,
+  };
+  if (!isTauri() || project.sourceKind !== 'folder' || !project.folderPath) {
+    return unchanged;
+  }
+
+  let currentPaths: string[];
+  try {
+    currentPaths = await listImagePathsInFolder(project.folderPath);
+  } catch (error) {
+    return {
+      ...unchanged,
+      folderError:
+        error instanceof Error
+          ? `${project.folderPath} (${error.message})`
+          : project.folderPath,
+    };
+  }
+
+  // Huella (tamaño + mtime) de cada archivo vigente en la carpeta.
+  const fingerprintByPath = new Map<string, FileFingerprint>();
+  await Promise.all(
+    currentPaths.map(async (path) => {
+      const fingerprint = await statFileMeta(path);
+      if (fingerprint) fingerprintByPath.set(path, fingerprint);
+    }),
+  );
+
+  const availablePaths = new Set(currentPaths);
+  const usedPaths = new Set<string>();
+  const added: PhotoAsset[] = [];
+  const removed: PhotoAsset[] = [];
+  const replaced: PhotoAsset[] = [];
+  const renamed: PhotoAsset[] = [];
+  const skipped: SkippedPhoto[] = [];
+  /** Sobrevivientes por posición original; null = quitada o pendiente de recarga. */
+  const slots: (PhotoAsset | null)[] = [];
+  const reloadJobs: { index: number; path: string; photo: PhotoAsset }[] = [];
+
+  project.photos.forEach((photo) => {
+    // 1) Por ruta exacta; si desapareció, por nombre (renombrada en la carpeta).
+    const path = availablePaths.has(photo.sourcePath)
+      ? photo.sourcePath
+      : currentPaths.find(
+          (p) =>
+            !usedPaths.has(p) &&
+            baseNameOfPath(p).toLowerCase() === photo.fileName.toLowerCase(),
+        );
+    if (!path) {
+      removed.push(photo);
+      slots.push(null);
+      return;
+    }
+    usedPaths.add(path);
+
+    const fingerprint = fingerprintByPath.get(path);
+    const previous =
+      typeof photo.fileSize === 'number'
+        ? { size: photo.fileSize, mtimeMs: photo.fileMtimeMs ?? null }
+        : undefined;
+    if (fingerprint && fingerprintChanged(previous, fingerprint)) {
+      // Reemplazada: se recarga y recompone conservando la meta; abajo.
+      slots.push(null);
+      reloadJobs.push({ index: slots.length - 1, path, photo });
+      return;
+    }
+
+    let updated = photo;
+    if (path !== photo.sourcePath || photo.fileMtimeMs === undefined) {
+      updated = {
+        ...photo,
+        sourcePath: path,
+        fileSize: fingerprint?.size,
+        fileMtimeMs: fingerprint?.mtimeMs ?? null,
+      };
+      if (path !== photo.sourcePath) renamed.push(updated);
+    }
+    slots.push(updated);
+  });
+
+  // Recarga de reemplazadas: una por una para conservar su meta aunque alguna
+  // falle (si falla, se conserva la versión anterior y se avisa).
+  for (const job of reloadJobs) {
+    try {
+      const { photos: fresh } = await loadPhotoAssets([{ path: job.path }], onProgress);
+      const fingerprint = fingerprintByPath.get(job.path);
+      if (fresh.length === 0) throw new Error('ilegible');
+      const merged: PhotoAsset = {
+        ...job.photo,
+        // La imagen es otra: su edición anterior ya no la representa.
+        status: 'pending',
+        sourcePath: job.path,
+        workingSrc: fresh[0].workingSrc,
+        width: fresh[0].width,
+        height: fresh[0].height,
+        fileSize: fingerprint?.size,
+        fileMtimeMs: fingerprint?.mtimeMs ?? null,
+      };
+      slots[job.index] = merged;
+      replaced.push(merged);
+    } catch {
+      slots[job.index] = {
+        ...job.photo,
+        fileSize: fingerprintByPath.get(job.path)?.size,
+        fileMtimeMs: fingerprintByPath.get(job.path)?.mtimeMs ?? null,
+      };
+      skipped.push({
+        name: job.photo.fileName,
+        reason: 'El archivo reemplazado no se pudo leer; se conserva la versión anterior',
+      });
+    }
+  }
+
+  // Nuevas en la carpeta: se cargan y se añaden al final (pendientes, vinculadas).
+  const newPaths = currentPaths.filter((p) => !usedPaths.has(p));
+  if (newPaths.length > 0) {
+    const { photos: freshPhotos, skipped: newSkipped } = await loadPhotoAssets(
+      newPaths.map((path) => ({ path })),
+      onProgress,
+    );
+    skipped.push(...newSkipped);
+    for (const photo of freshPhotos) {
+      const fingerprint = fingerprintByPath.get(photo.sourcePath);
+      added.push({
+        ...photo,
+        fileSize: fingerprint?.size,
+        fileMtimeMs: fingerprint?.mtimeMs ?? null,
+      });
+    }
+  }
+
+  const photos = [
+    ...slots.filter((p): p is PhotoAsset => p !== null),
+    ...added,
+  ];
+  return { photos, added, removed, replaced, renamed, skipped, folderError: null };
 }

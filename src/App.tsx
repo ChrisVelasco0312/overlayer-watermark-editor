@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { MantineProvider, Progress } from '@mantine/core';
 import { Notifications, notifications } from '@mantine/notifications';
 import { Container } from '@mantine/core';
@@ -12,69 +12,6 @@ import { Dashboard } from './components/Dashboard/Dashboard';
 import { WorkspacesPage } from './components/Workspaces/WorkspacesPage';
 import { isTauri } from './tauri/bridge';
 import { saveWorkspace } from './core/workspaces';
-import { invoke } from '@tauri-apps/api/core';
-
-const isDev = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
-
-function LayoutDiagnostics() {
-  const [details, setDetails] = useState('Measuring layout…');
-
-  useEffect(() => {
-    if (!isTauri() || !isDev) return;
-
-    const measure = () => {
-      const widthOf = (selector: string) => {
-        const element = document.querySelector<HTMLElement>(selector);
-        return element ? Math.round(element.getBoundingClientRect().width) : 'missing';
-      };
-      const rootStyle = getComputedStyle(document.documentElement);
-      setDetails([
-        `viewport ${window.innerWidth}×${window.innerHeight} · DPR ${window.devicePixelRatio}`,
-        `root ${widthOf('#root')} · content ${widthOf('.app-content')}`,
-        `upload ${widthOf('.upload-layout')} · card ${widthOf('.upload-dropzone')}`,
-        `font ${rootStyle.fontSize} · zoom ${rootStyle.getPropertyValue('zoom') || 'normal'}`,
-      ].join('\n'));
-      if (isDev) {
-        document.title = `DIAG ${window.innerWidth}x${window.innerHeight} dpr:${window.devicePixelRatio}`;
-      }
-      void invoke('log_layout', {
-        msg: `viewport ${window.innerWidth}x${window.innerHeight} · dpr ${window.devicePixelRatio} · client w ${document.documentElement.clientWidth}`,
-      }).catch(() => undefined);
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(document.documentElement);
-    const timer = window.setInterval(measure, 1000);
-    return () => {
-      observer.disconnect();
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  if (!isTauri() || !isDev) return null;
-
-  return (
-    <pre
-      style={{
-        position: 'fixed',
-        right: 8,
-        bottom: 8,
-        zIndex: 99999,
-        margin: 0,
-        padding: 8,
-        borderRadius: 4,
-        background: '#171717',
-        color: '#a6ff8f',
-        font: '12px/1.5 monospace',
-        whiteSpace: 'pre-wrap',
-        pointerEvents: 'none',
-      }}
-    >
-      {details}
-    </pre>
-  );
-}
 
 /** Autoguardado del espacio de trabajo (solo lotes basados en carpeta + Tauri). */
 const AUTOSAVE_DELAY = 900;
@@ -170,7 +107,6 @@ export function App() {
       colorSchemeManager={colorSchemeManager}
     >
       <Notifications position="top-right" />
-      <LayoutDiagnostics />
       <ProjectProvider>
         <Shell />
       </ProjectProvider>

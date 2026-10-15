@@ -91,6 +91,7 @@ export async function loadPhotoAssets(
         height: dims.height,
         status: 'pending',
         linked: true,
+        fileSize: file.size,
       });
     } catch {
       skipped.push({ name, reason: 'No se pudo procesar la imagen' });

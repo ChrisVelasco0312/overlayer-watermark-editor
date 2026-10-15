@@ -1,5 +1,5 @@
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import { readDir, readFile, writeFile } from '@tauri-apps/plugin-fs';
+import { readDir, readFile, stat, writeFile } from '@tauri-apps/plugin-fs';
 import { openPath } from '@tauri-apps/plugin-opener';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { IMAGE_DIALOG_FILTER, fileExtension, isImageFileName } from '../core/defaults';
@@ -161,6 +161,34 @@ export async function listImagePathsInFolder(folderPath: string): Promise<string
 
 export async function writeBinaryFile(path: string, data: Uint8Array): Promise<void> {
   await writeFile(path, data);
+}
+
+/** Huella ligera de un archivo para detectar reemplazos (tamaño + mtime). */
+export interface FileFingerprint {
+  size: number;
+  mtimeMs: number | null;
+}
+
+export async function statFileMeta(path: string): Promise<FileFingerprint | null> {
+  try {
+    const info = await stat(path);
+    return { size: info.size, mtimeMs: info.mtime ? info.mtime.getTime() : null };
+  } catch {
+    return null; // desapareció o no se puede leer
+  }
+}
+
+/** true si la huella cambió (o si no hay huella previa con la que comparar). */
+export function fingerprintChanged(
+  previous: FileFingerprint | undefined,
+  current: FileFingerprint,
+): boolean {
+  if (!previous) return false; // sin datos previos: conservador, asumimos igual
+  if (previous.size !== current.size) return true;
+  if (previous.mtimeMs !== null && current.mtimeMs !== null) {
+    return previous.mtimeMs !== current.mtimeMs;
+  }
+  return false;
 }
 
 export async function revealPath(path: string): Promise<void> {

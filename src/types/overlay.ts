@@ -89,6 +89,12 @@ export interface PhotoAsset {
   linked: boolean;
   /** Solo presente si `linked === false`. */
   ownTemplate?: OverlayTemplate;
+  /**
+   * Huella del archivo de origen (tamaño + mtime) para detectar reemplazos
+   * al sincronizar la carpeta. Solo en lotes de carpeta.
+   */
+  fileSize?: number;
+  fileMtimeMs?: number | null;
 }
 
 /** Estado global del proyecto/lote. */

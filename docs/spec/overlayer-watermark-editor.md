@@ -99,7 +99,16 @@ Fuente de verdad de estilos: `site-survey-gen/src/pages/ReportEdit/ReportEditSte
 
 4. **Paso 3 — Revisión / aplicado al lote (Dashboard)**
    - Lista (grid) de todas las fotos del lote con miniatura y estado.
-   - Acciones globales: **"Aplicar esta edición a todas"**, **"Exportar"**.
+   - Acciones globales: **"Aplicar esta edición a todas"**, **"Exportar"**,
+     y **"Sincronizar carpeta"** (lotes de carpeta en Tauri): relee la carpeta de
+     origen y empareja contra el lote: **nuevas** → añadidas al final como
+     pendientes y vinculadas; **quitadas** (el archivo ya no está) → removidas del
+     lote con aviso amarillo (su edición se descarta); **reemplazadas** (cambió el
+     contenido del archivo, detectado por huella tamaño+mtime) → releídas y
+     recomprimidas conservando id, nombre de salida, vínculo y plantilla
+     propia; su estado vuelve a «pendiente» porque la imagen editada ya no es
+     la misma; **renombradas dentro de la carpeta** → emparejadas por nombre con su
+     edición intacta. Avisa si no hay cambios o si la carpeta ya no se puede leer.
    - Acciones por foto:
      - **Reeditar** (abre el lienzo con esa foto).
      - **Desvincular** (la foto deja de seguir la plantilla común y se edita individualmente).
@@ -134,7 +143,9 @@ La cabecera ofrece un menú de dos secciones (segmentado junto al título):
 - **Asistente**: el flujo clásico (carga → editar → revisar → exportar) con el stepper visible.
   Los accesos contextuales (dashboard, exportar) solo se muestran en esta sección.
 - **Espacios guardados**: listado de sesiones persistidas, para retomar o reexportar un lote
-  sin repetir el asistente.
+  sin repetir el asistente. Es la **vista de bienvenida**: al abrir la app (escritorio) se
+  muestran los espacios guardados; en el navegador se abre directamente el asistente porque
+  el guardado no está disponible.
 
 **Persistencia (solo lotes basados en carpeta).** Cuando el origen es una carpeta y la app
 corre en Tauri, la sesión se **autoguarda** (con retardo de ~0,9 s tras cada cambio) en
@@ -483,6 +494,7 @@ make clean        # limpia dist/, dist-electron, src-tauri/target
 | M6 | Pulido | Undo/redo, atajos, estados de progreso, atractivo final y accesibilidad. *(parcial: undo/redo + atajos + progreso incluidos; pulido final pendiente)* |
 | M7 | Nombres de archivo | Renombrado individual y en grupo (con secuencia numérica) integrado en el dashboard y aplicado a la exportación. ✅ |
 | M8 | Persistencia | Menú Asistente/Espacios guardados; autoguardado de sesiones por carpeta; reanudación con validación de carpeta y fotos (faltantes/dañadas/nuevas). ✅ |
+| M9 | Sincronización de carpeta | Botón «Sincronizar carpeta» en el dashboard que empareja el lote con la carpeta: añade nuevas, quita borradas, recarga reemplazadas (huella tamaño+mtime) y re-empareja renombradas. ✅ |
 
 ---
 

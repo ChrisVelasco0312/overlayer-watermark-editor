@@ -7,6 +7,7 @@ import {
   Group,
   Modal,
   Paper,
+  Progress,
   SimpleGrid,
   Stack,
   Text,
@@ -18,6 +19,7 @@ import {
   IconLink,
   IconPhoto,
   IconPencil,
+  IconRefresh,
   IconTag,
   IconUnlink,
   IconZip,
@@ -26,6 +28,9 @@ import { PhotoPreview } from './PhotoPreview';
 import { PhotoNameInput } from './PhotoNameInput';
 import { RenameBatchModal } from './RenameBatchModal';
 import { useProjectStore } from '../../state/projectStore';
+import type { LoadProgress } from '../../core/loadPhotos';
+import { syncFolderPhotos } from '../../core/workspaces';
+import { isTauri } from '../../tauri/bridge';
 import type { PhotoAsset, PhotoStatus, ProjectState } from '../../types/overlay';
 import { photoTemplate } from '../../types/overlay';
 
@@ -34,6 +39,15 @@ const STATUS_META: Record<PhotoStatus, { label: string; color: string }> = {
   edited: { label: 'Editada', color: 'blue' },
   exported: { label: 'Exportada', color: 'green' },
 };
+
+const MAX_NAMES_IN_LIST = 8;
+
+/** Lista truncada de nombres para notificaciones («a, b … y N más»). */
+function nameList(names: string[]): string {
+  const shown = names.slice(0, MAX_NAMES_IN_LIST);
+  const rest = names.length - shown.length;
+  return shown.join(', ') + (rest > 0 ? ` y ${rest} más` : '');
+}
 
 interface PhotoCardProps {
   project: ProjectState;
@@ -132,6 +146,8 @@ export function Dashboard() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<LoadProgress | null>(null);
   const project = state.project;
 
   if (!project) {
@@ -175,6 +191,92 @@ export function Dashboard() {
       message: 'Edición aplicada a todas las fotos del lote.',
       autoClose: 3000,
     });
+  };
+
+  /** Sincroniza la carpeta de origen: aplica nuevas, quitadas y reemplazadas. */
+  const canSyncFolder =
+    isTauri() && project.sourceKind === 'folder' && Boolean(project.folderPath);
+
+  const handleSyncFolder = async () => {
+    if (!project?.folderPath || syncing) return;
+    setSyncing(true);
+    dispatch({ type: 'busy', message: 'Sincronizando carpeta…' });
+    try {
+      const result = await syncFolderPhotos(project, setSyncProgress);
+      if (result.folderError) {
+        notifications.show({
+          color: 'red',
+          title: 'Carpeta no disponible',
+          message: `No se pudo leer ${result.folderError}.`,
+        });
+        return;
+      }
+      for (const item of result.skipped) {
+        notifications.show({
+          color: 'yellow',
+          title: 'Foto dañada u omitida',
+          message: `${item.name}: ${item.reason}`,
+          autoClose: 8000,
+        });
+      }
+      if (result.removed.length > 0) {
+        notifications.show({
+          color: 'yellow',
+          title: `${result.removed.length} foto(s) quitadas del lote`,
+          message: `Ya no están en la carpeta: ${nameList(
+            result.removed.map((p) => p.fileName),
+          )}. Su edición quedó descartada.`,
+          autoClose: 10000,
+        });
+      }
+      if (result.replaced.length > 0) {
+        notifications.show({
+          color: 'blue',
+          title: `${result.replaced.length} foto(s) recargada(s)`,
+          message: `El archivo cambió en la carpeta: ${nameList(
+            result.replaced.map((p) => p.fileName),
+          )}. Se conservó su nombre de salida y vínculo; quedan pendientes de editar.`,
+          autoClose: 10000,
+        });
+      }
+      if (result.renamed.length > 0) {
+        notifications.show({
+          color: 'blue',
+          title: `${result.renamed.length} foto(s) renombrada(s) en la carpeta`,
+          message: `Se emparejaron por nombre: ${nameList(
+            result.renamed.map((p) => p.fileName),
+          )}.`,
+          autoClose: 10000,
+        });
+      }
+      if (result.added.length === 0 && result.removed.length === 0 && result.replaced.length === 0) {
+        notifications.show({
+          color: 'blue',
+          title: 'Carpeta sincronizada',
+          message: 'No hay cambios en la carpeta.',
+          autoClose: 3000,
+        });
+        return;
+      }
+      dispatch({ type: 'syncFolder', photos: result.photos });
+      if (result.added.length > 0) {
+        notifications.show({
+          color: 'green',
+          title: 'Carpeta sincronizada',
+          message: `${result.added.length} foto(s) nueva(s) añadida(s) al final del lote como pendientes.`,
+        });
+      }
+    } catch (error) {
+      notifications.show({
+        color: 'red',
+        title: 'No se pudo sincronizar',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setSyncing(false);
+      setSyncProgress(null);
+      dispatch({ type: 'busy', message: null });
+    }
   };
 
   return (
@@ -234,6 +336,26 @@ export function Dashboard() {
 
         <aside className="review-rail">
           <div className="review-rail-actions">
+            {canSyncFolder && (
+              <>
+                <Button
+                  variant="light"
+                  justify="flex-start"
+                  leftSection={<IconRefresh size={16} />}
+                  loading={syncing}
+                  onClick={() => void handleSyncFolder()}
+                >
+                  Sincronizar carpeta
+                </Button>
+                {syncing && syncProgress && syncProgress.total > 0 && (
+                  <Progress
+                    value={(syncProgress.done / syncProgress.total) * 100}
+                    animated
+                    striped
+                  />
+                )}
+              </>
+            )}
             <Button
               variant="light"
               justify="flex-start"
