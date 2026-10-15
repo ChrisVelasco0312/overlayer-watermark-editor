@@ -1,0 +1,91 @@
+name: Windows Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve app version
+        id: meta
+        shell: bash
+        run: |
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+          echo "product=$(node -e "console.log(require('./src-tauri/tauri.conf.json').productName)")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package.json and tauri.conf.json versions match
+        shell: bash
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          TAURI=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "$PKG" != "$TAURI" ]; then
+            echo "::error::Version mismatch: package.json=$PKG tauri.conf.json=$TAURI"
+            exit 1
+          fi
+
+      - name: Install Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri app (NSIS installer)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: build --target nsis
+
+      - name: Collect artifacts
+        id: artifacts
+        shell: pwsh
+        run: |
+          $productName = "${{ steps.meta.outputs.product }}"
+          $version = "${{ steps.meta.outputs.version }}"
+          $exePath = "src-tauri/target/release/$productName.exe"
+          $bundleDir = "src-tauri/target/nsis"
+
+          if (-not (Test-Path $exePath)) { throw "Portable executable not found: $exePath" }
+          if (-not (Test-Path $bundleDir)) { throw "NSIS bundle directory not found: $bundleDir" }
+
+          $installer = Get-ChildItem "$bundleDir/*setup*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "No NSIS installer matching *setup*.exe found in $bundleDir" }
+
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item $exePath "dist/Overlayer-portable-$version.exe"
+          Copy-Item $installer.FullName "dist/$($installer.Name)"
+
+          "installer=dist/$($installer.Name)" >> $env:GITHUB_OUTPUT
+          "portable=dist/Overlayer-portable-$version.exe" >> $env:GITHUB_OUTPUT
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Overlayer-windows-installer-x64
+          path: ${{ steps.artifacts.outputs.installer }}
+          if-no-files-found: error
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Overlayer-windows-portable-x64
+          path: ${{ steps.artifacts.outputs.portable }}
+          if-no-files-found: error
