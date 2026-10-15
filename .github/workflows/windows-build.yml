@@ -19,6 +19,7 @@ jobs:
         run: |
           echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
           echo "product=$(node -e "console.log(require('./src-tauri/tauri.conf.json').productName)")" >> "$GITHUB_OUTPUT"
+          echo "bin=$(awk -F'"' '/^name/{print $2; exit}' src-tauri/Cargo.toml)" >> "$GITHUB_OUTPUT"
 
       - name: Verify package.json and tauri.conf.json versions match
         shell: bash
@@ -62,12 +63,13 @@ jobs:
         shell: pwsh
         run: |
           $productName = "${{ steps.meta.outputs.product }}"
+          $binName = "${{ steps.meta.outputs.bin }}"
           $version = "${{ steps.meta.outputs.version }}"
 
-          $exe = Get-ChildItem -Path "src-tauri/target" -Recurse -Filter "$productName.exe" |
+          $exe = Get-ChildItem -Path "src-tauri/target" -Recurse -Filter "$binName.exe" |
             Where-Object { $_.FullName -match '\\release\\' -and $_.FullName -notmatch '\\nsis\\' } |
             Select-Object -First 1
-          if (-not $exe) { throw "Portable executable '$productName.exe' not found under src-tauri/target" }
+          if (-not $exe) { throw "Portable executable '$binName.exe' not found under src-tauri/target" }
 
           $installer = Get-ChildItem -Path "src-tauri/target" -Recurse -Filter "*setup*.exe" |
             Where-Object { $_.FullName -match '\\nsis\\' } |
