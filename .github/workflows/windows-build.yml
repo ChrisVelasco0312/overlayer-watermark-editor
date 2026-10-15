@@ -55,7 +55,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: --target nsis
+          args: --bundles nsis
 
       - name: Collect artifacts
         id: artifacts
@@ -63,17 +63,19 @@ jobs:
         run: |
           $productName = "${{ steps.meta.outputs.product }}"
           $version = "${{ steps.meta.outputs.version }}"
-          $exePath = "src-tauri/target/release/$productName.exe"
-          $bundleDir = "src-tauri/target/nsis"
 
-          if (-not (Test-Path $exePath)) { throw "Portable executable not found: $exePath" }
-          if (-not (Test-Path $bundleDir)) { throw "NSIS bundle directory not found: $bundleDir" }
+          $exe = Get-ChildItem -Path "src-tauri/target" -Recurse -Filter "$productName.exe" |
+            Where-Object { $_.FullName -match '\\release\\' -and $_.FullName -notmatch '\\nsis\\' } |
+            Select-Object -First 1
+          if (-not $exe) { throw "Portable executable '$productName.exe' not found under src-tauri/target" }
 
-          $installer = Get-ChildItem "$bundleDir/*setup*.exe" | Select-Object -First 1
-          if (-not $installer) { throw "No NSIS installer matching *setup*.exe found in $bundleDir" }
+          $installer = Get-ChildItem -Path "src-tauri/target" -Recurse -Filter "*setup*.exe" |
+            Where-Object { $_.FullName -match '\\nsis\\' } |
+            Select-Object -First 1
+          if (-not $installer) { throw "No NSIS installer matching *setup*.exe found under src-tauri/target" }
 
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item $exePath "dist/Overlayer-portable-$version.exe"
+          Copy-Item $exe.FullName "dist/Overlayer-portable-$version.exe"
           Copy-Item $installer.FullName "dist/$($installer.Name)"
 
           "installer=dist/$($installer.Name)" >> $env:GITHUB_OUTPUT
