@@ -9,7 +9,7 @@ import {
   ThemeIcon,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconFolder, IconPhoto, IconUpload } from '@tabler/icons-react';
+import { IconFolderShare, IconFolder, IconPhoto, IconUpload } from '@tabler/icons-react';
 import { useProjectStore } from '../../state/projectStore';
 import { loadPhotoAssets, type LoadProgress, type PhotoSource } from '../../core/loadPhotos';
 import { createDefaultTemplate, isImageFileName, newId, whenFontsReady } from '../../core/defaults';
@@ -193,11 +193,11 @@ export function StepUpload() {
             JPG, PNG, WEBP y AVIF · HEIC queda pendiente · la primera foto será la semilla de
             edición
           </Text>
-          <Group>
+          <Group justify="center">
             <Button
               leftSection={<IconPhoto size={16} />}
               onClick={handlePickFiles}
-              loading={busy}
+              disabled={busy}
             >
               Seleccionar archivos
             </Button>
@@ -205,7 +205,7 @@ export function StepUpload() {
               variant="light"
               leftSection={<IconFolder size={16} />}
               onClick={handlePickFolder}
-              loading={busy}
+              disabled={busy}
             >
               Seleccionar carpeta
             </Button>
@@ -234,6 +234,16 @@ export function StepUpload() {
           modifica.
         </Text>
       </Group>
+
+      {isTauri() && (
+        <Group gap="xs" c="teal">
+          <IconFolderShare size={14} />
+          <Text size="xs">
+            Si cargas una <b>carpeta</b>, la sesión se guarda sola en «Espacios guardados» y podrás
+            reanudarla aquí más adelante.
+          </Text>
+        </Group>
+      )}
     </Stack>
   );
 }

@@ -127,6 +127,47 @@ Fuente de verdad de estilos: `site-survey-gen/src/pages/ReportEdit/ReportEditSte
 - Feedback de progreso durante compresión y exportación (procesos por lotes).
 - El dashboard evita que "marcar terminado" sea irreversible: siempre se puede retomar.
 
+### 3.4 Navegación principal y Espacios guardados
+
+La cabecera ofrece un menú de dos secciones (segmentado junto al título):
+
+- **Asistente**: el flujo clásico (carga → editar → revisar → exportar) con el stepper visible.
+  Los accesos contextuales (dashboard, exportar) solo se muestran en esta sección.
+- **Espacios guardados**: listado de sesiones persistidas, para retomar o reexportar un lote
+  sin repetir el asistente.
+
+**Persistencia (solo lotes basados en carpeta).** Cuando el origen es una carpeta y la app
+corre en Tauri, la sesión se **autoguarda** (con retardo de ~0,9 s tras cada cambio) en
+`appDataDir()/overlayer-workspaces.json`. Se guarda el *recetario*: plantilla común con sus
+elementos, fotos con su ruta de origen, nombres de salida, estados, vínculo/plantilla propia y
+el paso del asistente donde quedó el usuario. **No se guardan los datos de imagen**: al
+reanudar se releen y recomprimen desde la carpeta original. Los lotes de fotos sueltas no se
+guardan.
+
+**Feedback al usuario:**
+- Badge «Sesión guardada» en la cabecera con la hora del último autoguardado.
+- Nota en la dropzone: cargar una carpeta guarda la sesión en «Espacios guardados».
+- Ayuda (paso 5) explicando el guardado automático.
+
+**Reanudación:** al pulsar *Reanudar* se verifica la carpeta y se empareja el espacio con el
+contenido vigente:
+1. Primero por ruta exacta; si la foto desapareció, por nombre de archivo (una foto renombrada
+   dentro de la carpeta conserva su edición, nombre de salida y estado).
+2. La carpeta **no existe o es ilegible** → modal con la ruta y el número de fotos afectadas,
+   con opción de «Eliminar espacio» (aclarando que las fotos no se borran). No se puede
+   reanudar: las imágenes se releen de esa carpeta.
+3. Fotos **faltantes** (borradas o movidas fuera) → aviso amarillo con la lista (truncada) y
+   se omiten del lote.
+4. Fotos **nuevas** en la carpeta → aviso azul con lista y un interruptor para incluirlas al
+   final del lote como pendientes (opcional).
+5. Imágenes **dañadas** al releer → notificación amarilla por foto con la razón («dañada u
+   omitida»).
+6. Reanudación limpia (sin cambios) → carga directa con notificación verde.
+
+Cada tarjeta del listado muestra: nombre de carpeta, ruta, nº de fotos (editadas/exportadas),
+fecha de actualización, paso donde quedó, y acciones: *Reanudar*, *Abrir carpeta* y *Eliminar*
+(con confirmación; solo borra el registro, no las fotos).
+
 ---
 
 ## 4. Modelo de datos (propuesto)
@@ -224,6 +265,33 @@ interface ProjectState {
 }
 ```
 
+**Persistencia (espacios guardados)**
+
+```ts
+interface WorkspacePhotoMeta {
+  sourcePath: string;
+  fileName: string;
+  outputName: string;
+  status: PhotoStatus;
+  linked: boolean;
+  ownTemplate?: OverlayTemplate;   // solo si linked === false
+}
+
+// Guardado en appDataDir()/overlayer-workspaces.json (array, más reciente primero)
+interface WorkspaceSnapshot {
+  id: string;                      // slug + hash del folderPath
+  name: string;                    // nombre de la carpeta
+  folderPath: string;              // clave de fusión: re-guardar la misma carpeta actualiza
+  createdAt: string;               // ISO
+  updatedAt: string;               // ISO
+  lastStep: 'upload' | 'edit' | 'review' | 'export';
+  template: OverlayTemplate;       // incluye elementos con imágenes embebidas (data URL)
+  photos: WorkspacePhotoMeta[];    // sin workingSrc: se relee de la carpeta al reanudar
+  exportFormat: 'jpeg' | 'png';
+  jpegQuality: number;
+}
+```
+
 **Reglas de vinculación**
 - Mientras `photo.linked === true`, la foto **hereda** `project.template`.
 - Al **desvincular** (`linked = false`) se clona la plantilla vigente en `photo.ownTemplate` y se
@@ -290,7 +358,9 @@ Portado y generalizado desde `site-survey-gen/src/utils/watermark.ts`.
 **Permisos (capabilities):** `dialog:allow-open`, `fs:allow-read-file`, `fs:allow-write-file`,
 `fs:allow-read-dir` (listado de carpetas al soltar/seleccionar una carpeta) + `fs:scope` con
 `/**` (lectura/escrita resuelven contra el scope; sin él falla con `PathForbidden`),
-`opener:allow-open-path`, drag-drop habilitado en la ventana.
+`opener:allow-open-path`, drag-drop habilitado en la ventana. Para los **espacios guardados**
+se añaden `fs:allow-read-text-file`, `fs:allow-write-text-file`, `fs:allow-mkdir` y
+`fs:allow-remove` (índice JSON en `appDataDir()`).
 
 ---
 
@@ -406,6 +476,7 @@ make clean        # limpia dist/, dist-electron, src-tauri/target
 | M5 | Exportación | ZIP + individual, formatos, selección de carpeta destino. ✅ |
 | M6 | Pulido | Undo/redo, atajos, estados de progreso, atractivo final y accesibilidad. *(parcial: undo/redo + atajos + progreso incluidos; pulido final pendiente)* |
 | M7 | Nombres de archivo | Renombrado individual y en grupo (con secuencia numérica) integrado en el dashboard y aplicado a la exportación. ✅ |
+| M8 | Persistencia | Menú Asistente/Espacios guardados; autoguardado de sesiones por carpeta; reanudación con validación de carpeta y fotos (faltantes/dañadas/nuevas). ✅ |
 
 ---
 
@@ -423,3 +494,7 @@ make clean        # limpia dist/, dist-electron, src-tauri/target
 7. El nombre de archivo de salida de cada foto se puede editar individualmente y en grupo
    (nombre base + número de secuencia al final), y los archivos exportados usan ese nombre.
 8. `npm run tauri:dev` funciona dentro del dev shell de NixOS.
+9. Al terminar una sesión sobre **carpeta**, aparece «Sesión guardada» en la cabecera y el
+   espacio aparece en «Espacios guardados» (incluso tras cerrar y reabrir la app). Al
+   reanudar: si la carpeta ya no existe se muestra un aviso claro con acción de eliminar; si
+   faltan fotos, están dañadas o hay nuevas, se avisa al usuario antes de continuar.

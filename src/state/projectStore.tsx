@@ -3,19 +3,27 @@ import type { OverlayTemplate, PhotoAsset, ProjectState } from '../types/overlay
 import { cloneTemplate, photoTemplate } from '../types/overlay';
 
 export type Step = 'upload' | 'edit' | 'review' | 'export';
+/** Vistas principales de la app: asistente o espacios guardados. */
+export type View = 'wizard' | 'workspaces';
 
 export interface ProjectStoreState {
+  view: View;
   step: Step;
   project: ProjectState | null;
   /** Foto cuya plantilla se está editando (la primera, o una reeditada). */
   editingPhotoId: string | null;
   busy: string | null;
   error: string | null;
+  /** Momento (ms) del último autoguardado del espacio de trabajo. */
+  workspaceSavedAt: number | null;
+  /** Último error de autoguardado (badge honesto en la cabecera). */
+  workspaceSaveError: string | null;
 }
 
 export type ProjectAction =
   | { type: 'reset' }
-  | { type: 'setProject'; project: ProjectState }
+  | { type: 'setView'; view: View }
+  | { type: 'setProject'; project: ProjectState; step?: Step }
   | { type: 'step'; step: Step }
   | { type: 'editPhoto'; photoId: string }
   | { type: 'setTemplate'; template: OverlayTemplate }
@@ -36,14 +44,19 @@ export type ProjectAction =
   | { type: 'setExport'; format?: 'jpeg' | 'png'; quality?: number }
   | { type: 'setExported'; photoIds: string[] }
   | { type: 'busy'; message: string | null }
-  | { type: 'error'; message: string | null };
+  | { type: 'error'; message: string | null }
+  | { type: 'workspaceSavedAt'; value: number | null }
+  | { type: 'workspaceSaveError'; message: string | null };
 
 export const initialStoreState: ProjectStoreState = {
+  view: 'wizard',
   step: 'upload',
   project: null,
   editingPhotoId: null,
   busy: null,
   error: null,
+  workspaceSavedAt: null,
+  workspaceSaveError: null,
 };
 
 function editingPhoto(state: ProjectStoreState): PhotoAsset | null {
@@ -76,13 +89,17 @@ export function projectReducer(
   switch (action.type) {
     case 'reset':
       return { ...initialStoreState };
+    case 'setView':
+      return { ...state, view: action.view };
     case 'setProject':
       return {
         ...state,
         project: action.project,
         editingPhotoId: action.project.photos[0]?.id ?? null,
-        step: 'edit',
+        step: action.step ?? 'edit',
         error: null,
+        workspaceSavedAt: null,
+        workspaceSaveError: null,
       };
     case 'step':
       return { ...state, step: action.step };
@@ -203,6 +220,10 @@ export function projectReducer(
       return { ...state, busy: action.message };
     case 'error':
       return { ...state, error: action.message };
+    case 'workspaceSavedAt':
+      return { ...state, workspaceSavedAt: action.value, workspaceSaveError: null };
+    case 'workspaceSaveError':
+      return { ...state, workspaceSaveError: action.message };
     default:
       return state;
   }

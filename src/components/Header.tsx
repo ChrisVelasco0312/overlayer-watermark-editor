@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import {
   ActionIcon,
+  Badge,
   Group,
   Modal,
+  SegmentedControl,
   Stack,
   Stepper,
   Text,
@@ -11,19 +13,27 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import {
+  IconAlertTriangle,
   IconDownload,
+  IconFolderOpen,
   IconHelpCircle,
   IconLayoutDashboard,
   IconMoonStars,
   IconSun,
 } from '@tabler/icons-react';
-import { useProjectStore, type Step } from '../state/projectStore';
+import { useProjectStore, type Step, type View } from '../state/projectStore';
+import { isTauri } from '../tauri/bridge';
 
 const STEPS: { id: Step; label: string }[] = [
   { id: 'upload', label: 'Carga' },
   { id: 'edit', label: 'Editar overlay' },
   { id: 'review', label: 'Revisar lote' },
   { id: 'export', label: 'Exportar' },
+];
+
+const VIEWS: { value: View; label: string }[] = [
+  { value: 'wizard', label: 'Asistente' },
+  { value: 'workspaces', label: 'Espacios guardados' },
 ];
 
 export function Header() {
@@ -33,6 +43,9 @@ export function Header() {
   const active = STEPS.findIndex((s) => s.id === state.step);
   const hasProject = Boolean(state.project);
   const isDark = colorScheme === 'dark';
+  const onWizard = state.view === 'wizard';
+  const autosaves =
+    isTauri() && hasProject && state.project?.sourceKind === 'folder';
 
   const goTo = (step: Step) => dispatch({ type: 'step', step });
 
@@ -45,8 +58,63 @@ export function Header() {
       }}
     >
       <Group justify="space-between" wrap="wrap" mb={6}>
-        <Title order={4}>Overlayer - Editor de marcas de agua</Title>
+        <Group gap="md" wrap="wrap">
+          <Title order={4}>Overlayer - Editor de marcas de agua</Title>
+          <SegmentedControl
+            size="xs"
+            value={state.view}
+            onChange={(v) => dispatch({ type: 'setView', view: v as View })}
+            data={VIEWS}
+            aria-label="Sección de la app"
+          />
+        </Group>
         <Group gap={6}>
+          {autosaves &&
+            (state.workspaceSaveError ? (
+              <Tooltip label={state.workspaceSaveError}>
+                <Badge color="orange" variant="light" leftSection={<IconAlertTriangle size={12} />}>
+                  Sin guardar
+                </Badge>
+              </Tooltip>
+            ) : (
+              <Tooltip
+                label={
+                  state.workspaceSavedAt
+                    ? `Sesión guardada ${new Date(state.workspaceSavedAt).toLocaleTimeString()}`
+                    : 'Guardando sesión…'
+                }
+              >
+                <Badge color="teal" variant="light" leftSection={<IconFolderOpen size={12} />}>
+                  Sesión guardada
+                </Badge>
+              </Tooltip>
+            ))}
+          {onWizard && (
+            <>
+              <Tooltip label="Dashboard del lote">
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  disabled={!hasProject}
+                  onClick={() => goTo('review')}
+                  aria-label="Volver al dashboard"
+                >
+                  <IconLayoutDashboard size={18} />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Exportar">
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  disabled={!hasProject}
+                  onClick={() => goTo('export')}
+                  aria-label="Exportar"
+                >
+                  <IconDownload size={18} />
+                </ActionIcon>
+              </Tooltip>
+            </>
+          )}
           <Tooltip label={isDark ? 'Tema claro' : 'Tema oscuro'}>
             <ActionIcon
               variant="default"
@@ -55,28 +123,6 @@ export function Header() {
             >
               <IconSun size={18} style={{ display: isDark ? 'block' : 'none' }} />
               <IconMoonStars size={18} style={{ display: isDark ? 'none' : 'block' }} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Dashboard del lote">
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              disabled={!hasProject}
-              onClick={() => goTo('review')}
-              aria-label="Volver al dashboard"
-            >
-              <IconLayoutDashboard size={18} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Exportar">
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              disabled={!hasProject}
-              onClick={() => goTo('export')}
-              aria-label="Exportar"
-            >
-              <IconDownload size={18} />
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Ayuda">
@@ -92,20 +138,22 @@ export function Header() {
         </Group>
       </Group>
 
-      <Stepper
-        active={Math.max(0, active)}
-        onStepClick={(index) => {
-          if (!hasProject || index === 0) return;
-          goTo(STEPS[index].id);
-        }}
-        allowNextStepsSelect={hasProject}
-        orientation="horizontal"
-        size="sm"
-      >
-        {STEPS.map((step) => (
-          <Stepper.Step key={step.id} label={step.label} />
-        ))}
-      </Stepper>
+      {onWizard && (
+        <Stepper
+          active={Math.max(0, active)}
+          onStepClick={(index) => {
+            if (!hasProject || index === 0) return;
+            goTo(STEPS[index].id);
+          }}
+          allowNextStepsSelect={hasProject}
+          orientation="horizontal"
+          size="sm"
+        >
+          {STEPS.map((step) => (
+            <Stepper.Step key={step.id} label={step.label} />
+          ))}
+        </Stepper>
+      )}
 
       <Modal opened={helpOpen} onClose={() => setHelpOpen(false)} title="Cómo funciona Overlayer" centered>
         <Stack gap="xs">
@@ -126,6 +174,11 @@ export function Header() {
           </Text>
           <Text size="sm" c="dimmed">
             Atajos: Ctrl+Z / Ctrl+Shift+Z (deshacer/rehacer), Supr (eliminar elemento).
+          </Text>
+          <Text size="sm">
+            5. Las sesiones sobre <b>carpetas se guardan solas</b> en «Espacios guardados»: puedes
+            reanudarlas para volver a editar o exportar aunque cierres la app. Si la carpeta o sus
+            fotos cambiaron, te avisamos al reanudar.
           </Text>
         </Stack>
       </Modal>
