@@ -27,6 +27,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import { NewSessionButton } from '../NewSessionButton';
 import { useProjectStore } from '../../state/projectStore';
 import type { Step } from '../../state/projectStore';
 import type { WorkspaceSnapshot } from '../../types/workspace';
@@ -168,18 +169,23 @@ export function WorkspacesPage() {
   return (
     <Stack gap="lg" maw={860} mx="auto" w="100%">
       <div>
-        <Group gap="sm" mb={4}>
-          <ThemeIcon variant="light" color="teal" size="lg">
-            <IconFolderOpen size={20} />
-          </ThemeIcon>
-          <Title order={3}>Espacios guardados</Title>
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+          <div>
+            <Group gap="sm" mb={4}>
+              <ThemeIcon variant="light" color="teal" size="lg">
+                <IconFolderOpen size={20} />
+              </ThemeIcon>
+              <Title order={3}>Espacios guardados</Title>
+            </Group>
+            <Text size="sm" c="dimmed" maw={640}>
+              Cuando trabajas sobre una <b>carpeta</b>, Overlayer guarda tu sesión automáticamente:
+              el overlay y sus elementos, qué fotos están desvinculadas, los estados y los nombres
+              de salida. Aquí puedes <b>reanudar cualquier sesión</b> para seguir editando o
+              exportar de nuevo. Las <b>fotos sueltas</b> (sin carpeta) no se guardan.
+            </Text>
+          </div>
+          <NewSessionButton />
         </Group>
-        <Text size="sm" c="dimmed">
-          Cuando trabajas sobre una <b>carpeta</b>, Overlayer guarda tu sesión automáticamente:
-          el overlay y sus elementos, qué fotos están desvinculadas, los estados y los nombres de
-          salida. Aquí puedes <b>reanudar cualquier sesión</b> para seguir editando o exportar de
-          nuevo. Las <b>fotos sueltas</b> (sin carpeta) no se guardan.
-        </Text>
       </div>
 
       {!supported && (

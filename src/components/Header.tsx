@@ -23,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { useProjectStore, type Step, type View } from '../state/projectStore';
 import { isTauri } from '../tauri/bridge';
+import { NewSessionButton } from './NewSessionButton';
 
 const STEPS: { id: Step; label: string }[] = [
   { id: 'upload', label: 'Carga' },
@@ -69,6 +70,7 @@ export function Header() {
           />
         </Group>
         <Group gap={6}>
+          {onWizard && hasProject && <NewSessionButton variant="light" size="xs" />}
           {autosaves &&
             (state.workspaceSaveError ? (
               <Tooltip label={state.workspaceSaveError}>

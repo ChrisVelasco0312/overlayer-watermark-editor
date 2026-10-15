@@ -149,6 +149,12 @@ guardan.
 - Nota en la dropzone: cargar una carpeta guarda la sesión en «Espacios guardados».
 - Ayuda (paso 5) explicando el guardado automático.
 
+**Nueva sesión:** botón visible en la cabecera (vista asistente, con proyecto activo) y en la
+página de Espacios guardados. Cierra la sesión en memoria y vuelve al paso de carga; los
+espacios guardados no se modifican. Pide confirmación solo si la sesión activa es de fotos
+sueltas (no queda guardada); si es de carpeta, avisa que ya quedó persistida y que la nueva
+carpeta creará su propio espacio.
+
 **Reanudación:** al pulsar *Reanudar* se verifica la carpeta y se empareja el espacio con el
 contenido vigente:
 1. Primero por ruta exacta; si la foto desapareció, por nombre de archivo (una foto renombrada
