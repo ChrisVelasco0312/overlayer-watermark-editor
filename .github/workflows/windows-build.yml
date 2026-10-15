@@ -5,21 +5,22 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Resolve app version
+      - name: Resolve app meta
         id: meta
         shell: bash
         run: |
           echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
-          echo "product=$(node -e "console.log(require('./src-tauri/tauri.conf.json').productName)")" >> "$GITHUB_OUTPUT"
           echo "bin=$(awk -F'"' '/^name/{print $2; exit}' src-tauri/Cargo.toml)" >> "$GITHUB_OUTPUT"
+          echo "product=$(node -e "console.log(require('./src-tauri/tauri.conf.json').productName)")" >> "$GITHUB_OUTPUT"
 
       - name: Verify package.json and tauri.conf.json versions match
         shell: bash
@@ -52,17 +53,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Tauri app (NSIS installer)
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: --bundles nsis
+        run: pnpm tauri build --bundles nsis
 
       - name: Collect artifacts
         id: artifacts
         shell: pwsh
         run: |
-          $productName = "${{ steps.meta.outputs.product }}"
           $binName = "${{ steps.meta.outputs.bin }}"
           $version = "${{ steps.meta.outputs.version }}"
 
@@ -83,16 +79,12 @@ jobs:
           "installer=dist/$($installer.Name)" >> $env:GITHUB_OUTPUT
           "portable=dist/Overlayer-portable-$version.exe" >> $env:GITHUB_OUTPUT
 
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
         with:
-          name: Overlayer-windows-installer-x64
-          path: ${{ steps.artifacts.outputs.installer }}
-          if-no-files-found: error
-
-      - name: Upload portable artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Overlayer-windows-portable-x64
-          path: ${{ steps.artifacts.outputs.portable }}
-          if-no-files-found: error
+          tag_name: v${{ steps.meta.outputs.version }}
+          name: Overlayer v${{ steps.meta.outputs.version }}
+          files: |
+            ${{ steps.artifacts.outputs.installer }}
+            ${{ steps.artifacts.outputs.portable }}
+          generate_release_notes: true
