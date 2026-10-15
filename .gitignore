@@ -25,6 +25,11 @@ result-*
 *.sln
 *.sw?
 
+# Playwright artifacts
+output/
+test-results/
+playwright-report/
+
 # Logs
 *.log
 npm-debug.log*

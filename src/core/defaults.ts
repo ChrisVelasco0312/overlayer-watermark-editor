@@ -45,6 +45,24 @@ export function baseName(fileName: string): string {
   return idx > 0 ? fileName.slice(0, idx) : fileName;
 }
 
+/**
+ * Nombre de salida por defecto: prefijo `overlayer_` + nombre original sin
+ * extensión (hereda el comportamiento previo de exportación).
+ */
+export function defaultOutputName(fileName: string): string {
+  return `overlayer_${baseName(fileName)}`;
+}
+
+/** Limpia un nombre de archivo: quita separadores, control y espacios sobrantes. */
+export function sanitizeFileName(name: string): string {
+  return name
+    .replace(/[\\/:*?"<>|]/g, '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** fontSize por defecto: clamp(18, 28, round(min(w,h) * 0.028)). */
 export function defaultFontSize(minDim: number): number {
   return Math.max(18, Math.min(28, Math.round(minDim * 0.028)));

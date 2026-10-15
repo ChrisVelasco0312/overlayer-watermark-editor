@@ -83,8 +83,13 @@ export function StepExport() {
           photoTemplate(project, photo),
           { format, quality },
         );
-        let name = `overlayer_${baseName(photo.fileName)}.${ext}`;
-        if (used.has(name)) name = `overlayer_${i + 1}_${baseName(photo.fileName)}.${ext}`;
+        let name = `${photo.outputName || baseName(photo.fileName)}.${ext}`;
+        if (used.has(name)) {
+          const stem = photo.outputName || baseName(photo.fileName);
+          let n = 2;
+          while (used.has(`${stem}-${n}.${ext}`)) n += 1;
+          name = `${stem}-${n}.${ext}`;
+        }
         used.add(name);
         results.push({ name, dataUrl });
       }

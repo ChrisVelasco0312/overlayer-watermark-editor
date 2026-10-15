@@ -73,7 +73,13 @@ export interface PhotoAsset {
   id: Id;
   /** Nombre/ruta de origen. */
   sourcePath: string;
+  /** Nombre original del archivo (solo lectura). */
   fileName: string;
+  /**
+   * Nombre de archivo de salida, sin extensión. Editable individualmente o en
+   * grupo; se usa al exportar (la extensión la aporta el formato de salida).
+   */
+  outputName: string;
   /** Imagen comprimida lista para render (data URL blob). */
   workingSrc: string;
   width: number;

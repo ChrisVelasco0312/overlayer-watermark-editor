@@ -3,6 +3,7 @@ import type { PhotoAsset } from '../types/overlay';
 import {
   COMPRESSION_OPTIONS,
   PENDING_EXTENSIONS,
+  defaultOutputName,
   fileExtension,
   newId,
 } from './defaults';
@@ -84,6 +85,7 @@ export async function loadPhotoAssets(
         id: newId('photo'),
         sourcePath: source.path ?? file.name,
         fileName: name,
+        outputName: defaultOutputName(name),
         workingSrc: dataUrl,
         width: dims.width,
         height: dims.height,

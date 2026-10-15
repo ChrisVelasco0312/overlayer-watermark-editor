@@ -21,6 +21,16 @@ export type ProjectAction =
   | { type: 'setTemplate'; template: OverlayTemplate }
   | { type: 'unlink'; photoId: string }
   | { type: 'relink'; photoId: string }
+  | { type: 'renamePhoto'; photoId: string; outputName: string }
+  | {
+      type: 'renameGroup';
+      photoIds: string[];
+      baseName: string;
+      /** Número inicial de la secuencia (solo si el grupo tiene >1 foto). */
+      start: number;
+      /** Dígitos de relleno de la secuencia. */
+      pad: number;
+    }
   | { type: 'applyToAll' }
   | { type: 'markEdited' }
   | { type: 'setExport'; format?: 'jpeg' | 'png'; quality?: number }
@@ -109,6 +119,37 @@ export function projectReducer(
       return {
         ...state,
         project: updatePhoto(state.project, action.photoId, (p) => (p.linked ? p : asLinked(p))),
+      };
+    }
+    case 'renamePhoto': {
+      if (!state.project) return state;
+      return {
+        ...state,
+        project: updatePhoto(state.project, action.photoId, (p) => ({
+          ...p,
+          outputName: action.outputName,
+        })),
+      };
+    }
+    case 'renameGroup': {
+      if (!state.project) return state;
+      const idSet = new Set(action.photoIds);
+      // Con una sola foto no se añade secuencia; en grupo, `base-NN`.
+      const grouped = action.photoIds.length > 1;
+      let seq = 0;
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          photos: state.project.photos.map((p) => {
+            if (!idSet.has(p.id)) return p;
+            const outputName = grouped
+              ? `${action.baseName}-${String(action.start + seq).padStart(action.pad, '0')}`
+              : action.baseName;
+            seq += 1;
+            return { ...p, outputName };
+          }),
+        },
       };
     }
     case 'applyToAll': {

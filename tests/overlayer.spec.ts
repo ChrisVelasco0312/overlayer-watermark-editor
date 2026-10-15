@@ -44,11 +44,11 @@ test('flujo completo: carga → editor → dashboard → exportación', async ({
     page.waitForEvent('filechooser'),
     page.getByRole('button', { name: 'Seleccionar archivos' }).click(),
   ]);
-  await chooser.setFiles('public/logo_transparent.png');
+  await chooser.setFiles(['public/logo_transparent.png', 'public/logo_transparent.png']);
 
   // ── Paso 2: edición ──
   await page.waitForSelector('canvas', { timeout: 30_000 });
-  await expect(page.getByRole('button', { name: 'Revisar lote', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Revisar lote/ })).toBeVisible();
   await page.waitForTimeout(1200);
 
   // Overlay por defecto: logo + texto (capas visibles).
@@ -78,18 +78,36 @@ test('flujo completo: carga → editor → dashboard → exportación', async ({
   await page.screenshot({ path: 'output/04-editor-undo.png', fullPage: true });
 
   // ── Paso 3: dashboard / lote ──
-  await page.getByRole('button', { name: 'Revisar lote', exact: true }).click();
+  await page.getByRole('button', { name: /Revisar lote/ }).click();
   await expect(page.getByText('Aplicar esta edición a todas')).toBeVisible();
-  await expect(page.getByText('1 foto en el lote')).toBeVisible();
+  await expect(page.getByText('2 fotos en el lote')).toBeVisible();
   await page.waitForTimeout(2500); // previews con debounce
   await page.screenshot({ path: 'output/05-dashboard.png', fullPage: true });
 
   // Desvincular → Individual; Revertir → Vinculada.
-  await page.getByRole('button', { name: 'Desvincular' }).click();
+  await page.getByRole('button', { name: 'Desvincular' }).first().click();
   await expect(page.getByText('Individual').first()).toBeVisible();
   await page.screenshot({ path: 'output/06-dashboard-unlinked.png', fullPage: true });
-  await page.getByRole('button', { name: 'Revertir' }).click();
+  await page.getByRole('button', { name: 'Revertir' }).first().click();
   await expect(page.getByText('Vinculada').first()).toBeVisible();
+
+  // ── Renombrado ──
+  const nameInputs = page.getByLabel(/^Nombre de archivo de /);
+  // En grupo (seleccionar todo) → nombre base + secuencia.
+  await page.getByRole('checkbox', { name: 'Seleccionar todo' }).check();
+  await page.getByRole('button', { name: /^Renombrar/ }).click();
+  await page.getByLabel('Nombre base').fill('lote');
+  await page.getByRole('button', { name: 'Aplicar a 2' }).click();
+  await expect(nameInputs.nth(0)).toHaveValue('lote-01');
+  await expect(nameInputs.nth(1)).toHaveValue('lote-02');
+  await page.screenshot({ path: 'output/06b-dashboard-renamed-group.png', fullPage: true });
+
+  // Individualmente: desmarcar y renombrar la primera.
+  await page.getByRole('checkbox', { name: 'Seleccionar todo' }).uncheck();
+  await nameInputs.nth(0).fill('destacada');
+  await nameInputs.nth(0).blur();
+  await expect(nameInputs.nth(0)).toHaveValue('destacada');
+  await expect(nameInputs.nth(1)).toHaveValue('lote-02');
 
   // ── Paso 4: exportación ──
   await page
@@ -102,7 +120,7 @@ test('flujo completo: carga → editor → dashboard → exportación', async ({
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: /Exportar \d+ foto/ }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toMatch(/^overlayer_.*\.jpg$/);
+  expect(download.suggestedFilename()).toBe('destacada.jpg');
 
   await expect(page.getByText(/imagen\(es\) descargadas/)).toBeVisible();
   await page.screenshot({ path: 'output/08-export-done.png', fullPage: true });

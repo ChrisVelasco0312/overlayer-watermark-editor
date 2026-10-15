@@ -104,6 +104,12 @@ Fuente de verdad de estilos: `site-survey-gen/src/pages/ReportEdit/ReportEditSte
      - **Reeditar** (abre el lienzo con esa foto).
      - **Desvincular** (la foto deja de seguir la plantilla común y se edita individualmente).
      - **Revertir** a la plantilla común.
+     - **Renombrar**: el nombre de archivo de salida es editable por foto.
+   - Acciones de renombrado en grupo:
+     - Selección de fotos mediante casillas (o "Seleccionar todo"); si no hay selección, el
+       renombrado aplica a todo el lote.
+     - Nombre base + número inicial + dígitos de relleno; en grupos se añade un **número de
+       secuencia al final** (`base-01`, `base-02`, …). Con una sola foto se usa el nombre tal cual.
    - Indicador de vínculo: 🔗 *vinculada* vs 🔓 *individual*.
 
 5. **Paso 4 — Exportación**
@@ -111,6 +117,8 @@ Fuente de verdad de estilos: `site-survey-gen/src/pages/ReportEdit/ReportEditSte
    - Si fueron **fotos sueltas**: **descarga individual** por foto (o zip, opción del usuario).
    - Elección de carpeta destino con el diálogo nativo de Tauri.
    - Formato de salida configurable: JPEG (calidad) o PNG.
+   - El nombre de cada archivo de salida es su `outputName` (editable); si dos coinciden se
+     desambiguan con un sufijo numérico.
 
 ### 3.3 Puntos clave de UX
 - Selección visual del elemento con recuadro y handles (escala) / modo rotación, reutilizando el
@@ -186,7 +194,13 @@ interface PhotoAsset {
   id: Id;
   /** Nombre/ruta de origen. */
   sourcePath: string;
+  /** Nombre original del archivo (solo lectura). */
   fileName: string;
+  /**
+   * Nombre de archivo de salida, sin extensión. Editable individual o en
+   * grupo; determina el nombre al exportar.
+   */
+  outputName: string;
   /** Imagen comprimida lista para render (data URL blob). */
   workingSrc: string;
   width: number;
@@ -391,6 +405,7 @@ make clean        # limpia dist/, dist-electron, src-tauri/target
 | M4 | Aplicado al lote | Plantilla común, dashboard, vincular/desvincular/revertir. ✅ |
 | M5 | Exportación | ZIP + individual, formatos, selección de carpeta destino. ✅ |
 | M6 | Pulido | Undo/redo, atajos, estados de progreso, atractivo final y accesibilidad. *(parcial: undo/redo + atajos + progreso incluidos; pulido final pendiente)* |
+| M7 | Nombres de archivo | Renombrado individual y en grupo (con secuencia numérica) integrado en el dashboard y aplicado a la exportación. ✅ |
 
 ---
 
@@ -405,4 +420,6 @@ make clean        # limpia dist/, dist-electron, src-tauri/target
 4. Se puede aplicar la edición de la primera foto al resto del lote.
 5. Se puede **desvincular** una foto para editarla individualmente y revertirla después.
 6. Al marcar como terminado se puede exportar como `.zip` (lote/carpeta) o por foto individual.
-7. `npm run tauri:dev` funciona dentro del dev shell de NixOS.
+7. El nombre de archivo de salida de cada foto se puede editar individualmente y en grupo
+   (nombre base + número de secuencia al final), y los archivos exportados usan ese nombre.
+8. `npm run tauri:dev` funciona dentro del dev shell de NixOS.
