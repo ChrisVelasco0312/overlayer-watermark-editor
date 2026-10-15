@@ -1,0 +1,52 @@
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+}
+
+.app-content {
+  box-sizing: border-box;
+  flex: 1 0 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.upload-layout {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+.upload-dropzone {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 760px;
+  max-width: calc(100vw - 48px);
+}
+
+/* Damero detrás del lienzo para ver los bordes de la foto. */
+.canvas-checkerboard {
+  background-image:
+    linear-gradient(45deg, #e9ecef 25%, transparent 25%),
+    linear-gradient(-45deg, #e9ecef 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e9ecef 75%),
+    linear-gradient(-45deg, transparent 75%, #e9ecef 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  background-color: #f8f9fa;
+}
