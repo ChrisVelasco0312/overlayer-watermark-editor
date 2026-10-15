@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActionIcon,
   Badge,
   Button,
   Checkbox,
@@ -9,6 +10,7 @@ import {
   SimpleGrid,
   Stack,
   Text,
+  Title,
   Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -68,53 +70,57 @@ function PhotoCard({ project, photo, selected, onToggle }: PhotoCardProps) {
             <Text size="sm">{photo.linked ? '🔗' : '🔓'}</Text>
           </Tooltip>
         </Group>
-        <Group gap={4}>
-          <Badge size="xs" color={status.color} variant="light">
+        <Group gap={4} justify="space-between" wrap="nowrap">
+          <Badge size="xs" color={status.color} variant="light" style={{ flexShrink: 0 }}>
             {status.label}
           </Badge>
-          <Badge size="xs" color={photo.linked ? 'blue' : 'grape'} variant="light">
-            {photo.linked ? 'Vinculada' : 'Individual'}
-          </Badge>
-        </Group>
-        <Group gap={4}>
-          <Button
-            size="compact-xs"
-            variant="light"
-            leftSection={<IconPencil size={12} />}
-            onClick={() => dispatch({ type: 'editPhoto', photoId: photo.id })}
-          >
-            Reeditar
-          </Button>
-          {photo.linked ? (
-            <Tooltip label="Dejar de seguir la plantilla común (la clona)">
-              <Button
-                size="compact-xs"
-                variant="default"
-                leftSection={<IconUnlink size={12} />}
-                onClick={() => {
-                  dispatch({ type: 'unlink', photoId: photo.id });
-                  notifications.show({
-                    color: 'grape',
-                    message: `${photo.fileName} ahora se edita por separado.`,
-                    autoClose: 2500,
-                  });
-                }}
-              >
-                Desvincular
-              </Button>
-            </Tooltip>
-          ) : (
-            <Tooltip label="Descartar la edición propia y volver a la plantilla común">
-              <Button
-                size="compact-xs"
-                variant="default"
-                leftSection={<IconLink size={12} />}
-                onClick={() => dispatch({ type: 'relink', photoId: photo.id })}
-              >
-                Revertir
-              </Button>
-            </Tooltip>
-          )}
+          <Group gap={4} wrap="nowrap">
+            <Button
+              size="compact-xs"
+              variant="light"
+              leftSection={<IconPencil size={12} />}
+              onClick={() => dispatch({ type: 'editPhoto', photoId: photo.id })}
+            >
+              Reeditar
+            </Button>
+            {photo.linked ? (
+              <Tooltip label="Dejar de seguir la plantilla común (la clona)">
+                <ActionIcon
+                  size="sm"
+                  variant="default"
+                  aria-label={`Desvincular ${photo.fileName}`}
+                  onClick={() => {
+                    dispatch({ type: 'unlink', photoId: photo.id });
+                    notifications.show({
+                      color: 'grape',
+                      message: `${photo.fileName} ahora se edita por separado.`,
+                      autoClose: 2500,
+                    });
+                  }}
+                >
+                  <IconUnlink size={14} />
+                </ActionIcon>
+              </Tooltip>
+            ) : (
+              <Tooltip label="Descartar la edición propia y volver a la plantilla común">
+                <ActionIcon
+                  size="sm"
+                  variant="default"
+                  aria-label={`Revertir ${photo.fileName}`}
+                  onClick={() => {
+                    dispatch({ type: 'relink', photoId: photo.id });
+                    notifications.show({
+                      color: 'teal',
+                      message: `${photo.fileName} volvió a la plantilla común.`,
+                      autoClose: 2500,
+                    });
+                  }}
+                >
+                  <IconLink size={14} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </Group>
         </Group>
       </Stack>
     </Paper>
@@ -173,25 +179,31 @@ export function Dashboard() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="center">
-        <Group gap="xs">
-          <IconPhoto size={18} />
-          <Text fw={600}>
+      <Stack gap={2}>
+        <Group gap="xs" wrap="nowrap">
+          <IconPhoto size={20} />
+          <Title order={4}>Revisar lote</Title>
+        </Group>
+        <Group gap="xs" wrap="wrap">
+          <Text size="sm" c="dimmed">
             {project.photos.length} foto{project.photos.length === 1 ? '' : 's'} en el lote
           </Text>
-          <Badge variant="light" color="blue">
+          <Badge size="sm" variant="light" color="blue">
             {linked} vinculadas
           </Badge>
-          <Badge variant="light" color="grape">
+          <Badge size="sm" variant="light" color="grape">
             {individual} individual{individual === 1 ? '' : 'es'}
           </Badge>
           {exported > 0 && (
-            <Badge variant="light" color="green">
+            <Badge size="sm" variant="light" color="green">
               {exported} exportadas
             </Badge>
           )}
         </Group>
-        <Group gap="xs">
+      </Stack>
+
+      <div className="batch-toolbar">
+        <Group gap="sm" wrap="wrap">
           <Checkbox
             size="xs"
             label="Seleccionar todo"
@@ -199,44 +211,59 @@ export function Dashboard() {
             indeterminate={someSelected}
             onChange={toggleAll}
           />
-          <Button
-            variant="light"
-            leftSection={<IconTag size={16} />}
-            onClick={() => setRenameOpen(true)}
-            disabled={project.photos.length === 0}
-          >
-            Renombrar{selected.size > 0 ? ` (${selected.size})` : ''}
-          </Button>
-          <Button
-            variant="light"
-            onClick={() => setConfirmOpen(true)}
-            disabled={project.photos.length === 0}
-          >
-            Aplicar esta edición a todas
-          </Button>
-          <Button
-            leftSection={<IconZip size={16} />}
-            onClick={() => {
-              dispatch({ type: 'markEdited' });
-              dispatch({ type: 'step', step: 'export' });
-            }}
-          >
-            Exportar
-          </Button>
+          {selected.size > 0 && (
+            <Badge size="sm" variant="light" color="blue">
+              {selected.size} seleccionada{selected.size === 1 ? '' : 's'}
+            </Badge>
+          )}
         </Group>
-      </Group>
+      </div>
 
-      <SimpleGrid cols={{ base: 1, xs: 2, sm: 2, md: 3, lg: 4 }} spacing="md">
-        {project.photos.map((photo) => (
-          <PhotoCard
-            key={photo.id}
-            project={project}
-            photo={photo}
-            selected={selected.has(photo.id)}
-            onToggle={toggleSelected}
-          />
-        ))}
-      </SimpleGrid>
+      <div className="review-layout">
+        <SimpleGrid cols={{ base: 1, xs: 2, sm: 2, md: 3, lg: 4 }} spacing="md" className="review-grid">
+          {project.photos.map((photo) => (
+            <PhotoCard
+              key={photo.id}
+              project={project}
+              photo={photo}
+              selected={selected.has(photo.id)}
+              onToggle={toggleSelected}
+            />
+          ))}
+        </SimpleGrid>
+
+        <aside className="review-rail">
+          <div className="review-rail-actions">
+            <Button
+              variant="light"
+              justify="flex-start"
+              leftSection={<IconTag size={16} />}
+              onClick={() => setRenameOpen(true)}
+              disabled={project.photos.length === 0}
+            >
+              Renombrar{selected.size > 0 ? ` (${selected.size})` : ''}
+            </Button>
+            <Button
+              variant="light"
+              justify="flex-start"
+              onClick={() => setConfirmOpen(true)}
+              disabled={project.photos.length === 0}
+            >
+              Aplicar esta edición a todas
+            </Button>
+            <Button
+              justify="flex-start"
+              leftSection={<IconZip size={16} />}
+              onClick={() => {
+                dispatch({ type: 'markEdited' });
+                dispatch({ type: 'step', step: 'export' });
+              }}
+            >
+              Exportar
+            </Button>
+          </div>
+        </aside>
+      </div>
 
       <Modal
         opened={confirmOpen}

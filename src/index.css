@@ -42,6 +42,21 @@ body {
   flex: 1 0 auto;
   min-width: 0;
   width: 100%;
+
+  /* Flex en columna para poder repartir el espacio vertical restante. */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Centrado vertical adaptable: los márgenes automáticos arriba/abajo
+   reparten el espacio sobrante entre ambos lados (página centrada).
+   Si el contenido no cabe (espacio negativo), esos márgenes colapsan a 0
+   y la página vuelve a quedar arriba con el scroll normal del documento:
+   nunca se recorta por arriba ni se genera desborde inaccesible. */
+.app-content > * {
+  margin-top: auto;
+  margin-bottom: auto;
+  min-width: 0;
 }
 
 .upload-layout {
@@ -56,6 +71,87 @@ body {
   min-width: 0;
   width: 760px;
   max-width: calc(100vw - 48px);
+}
+
+/* Barra de selección del lote: permanece visible al recorrer la lista. */
+.batch-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--mantine-color-body);
+  padding: 9px 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
+}
+
+.batch-toolbar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -17px; /* gap "md" del Stack contenedor */
+  height: 17px;
+  background: var(--mantine-color-body);
+  pointer-events: none;
+}
+
+/* Revisar lote: rejilla de fotos + rail lateral de acciones. */
+.review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--mantine-spacing-md);
+  align-items: start;
+}
+
+.review-grid {
+  min-width: 0;
+}
+
+/* Rail: pegado bajo la barra de selección para que Exportar siempre
+   quede al alcance al recorrer lotes largos. */
+.review-rail {
+  align-self: start;
+  position: sticky;
+  top: 44px; /* debajo de .batch-toolbar */
+  z-index: 10;
+  width: 240px;
+  box-sizing: border-box;
+  padding: 4px;
+}
+
+.review-rail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.review-rail-actions .mantine-Button-root {
+  width: 100%;
+  /* Que la etiqueta pase a dos líneas en vez de recortarse. */
+  white-space: normal;
+  text-align: left;
+}
+
+/* En pantallas estrechas el rail pasa bajo la rejilla, como fila. */
+@media (max-width: 48em) {
+  .review-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .review-rail {
+    position: static;
+    width: auto;
+    padding: 0;
+  }
+
+  .review-rail-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .review-rail-actions .mantine-Button-root {
+    width: auto;
+  }
 }
 
 /* Damero detrás del lienzo para ver los bordes de la foto. */
