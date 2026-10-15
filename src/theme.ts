@@ -1,8 +1,13 @@
-import { createTheme } from '@mantine/core';
+import { createTheme, localStorageColorSchemeManager } from '@mantine/core';
+
+/** Gestor del esquema de color, persistido en localStorage. */
+export const colorSchemeManager = localStorageColorSchemeManager({
+  key: 'overlayer-color-scheme',
+});
 
 /** Tema base: hereda el look de site-survey-gen (Mantine por defecto) + Roboto. */
 export const theme = createTheme({
-  primaryColor: 'orange',
+  primaryColor: 'teal',
   fontFamily: 'Roboto, Arial, sans-serif',
   headings: { fontFamily: 'Roboto, Arial, sans-serif', fontWeight: '700' },
   defaultRadius: 'md',

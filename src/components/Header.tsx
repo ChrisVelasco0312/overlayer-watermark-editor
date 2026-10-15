@@ -8,11 +8,14 @@ import {
   Text,
   Title,
   Tooltip,
+  useMantineColorScheme,
 } from '@mantine/core';
 import {
   IconDownload,
   IconHelpCircle,
   IconLayoutDashboard,
+  IconMoonStars,
+  IconSun,
 } from '@tabler/icons-react';
 import { useProjectStore, type Step } from '../state/projectStore';
 
@@ -25,23 +28,35 @@ const STEPS: { id: Step; label: string }[] = [
 
 export function Header() {
   const { state, dispatch } = useProjectStore();
+  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const [helpOpen, setHelpOpen] = useState(false);
   const active = STEPS.findIndex((s) => s.id === state.step);
   const hasProject = Boolean(state.project);
+  const isDark = colorScheme === 'dark';
 
   const goTo = (step: Step) => dispatch({ type: 'step', step });
 
   return (
     <header
       style={{
-        background: 'var(--mantine-color-white)',
+        background: 'var(--app-surface)',
         padding: '10px 20px 16px',
-        borderBottom: '1px solid var(--mantine-color-gray-3)',
+        borderBottom: '1px solid var(--app-surface-border)',
       }}
     >
       <Group justify="space-between" wrap="wrap" mb={6}>
         <Title order={4}>Overlayer - Editor de marcas de agua</Title>
         <Group gap={6}>
+          <Tooltip label={isDark ? 'Tema claro' : 'Tema oscuro'}>
+            <ActionIcon
+              variant="default"
+              onClick={toggleColorScheme}
+              aria-label={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+            >
+              <IconSun size={18} style={{ display: isDark ? 'block' : 'none' }} />
+              <IconMoonStars size={18} style={{ display: isDark ? 'none' : 'block' }} />
+            </ActionIcon>
+          </Tooltip>
           <Tooltip label="Dashboard del lote">
             <ActionIcon
               variant="subtle"

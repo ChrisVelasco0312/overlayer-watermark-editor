@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { MantineProvider, Progress } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { Container } from '@mantine/core';
-import { theme } from './theme';
+import { theme, colorSchemeManager } from './theme';
 import { ProjectProvider, useProjectStore } from './state/projectStore';
 import { Header } from './components/Header';
 import { StepUpload } from './components/Wizard/StepUpload';
@@ -99,7 +99,11 @@ function Shell() {
 
 export function App() {
   return (
-    <MantineProvider theme={theme}>
+    <MantineProvider
+      theme={theme}
+      defaultColorScheme="dark"
+      colorSchemeManager={colorSchemeManager}
+    >
       <Notifications position="top-right" />
       <LayoutDiagnostics />
       <ProjectProvider>

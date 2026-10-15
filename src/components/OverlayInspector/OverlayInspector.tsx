@@ -80,8 +80,8 @@ function ElementLayers({
             style={{
               borderRadius: 6,
               cursor: 'pointer',
-              border: `1px solid ${active ? 'var(--mantine-color-orange-5)' : 'var(--mantine-color-default-border)'}`,
-              background: active ? 'var(--mantine-color-orange-0)' : 'transparent',
+              border: `1px solid ${active ? 'var(--app-accent-border)' : 'var(--mantine-color-default-border)'}`,
+              background: active ? 'var(--app-accent-subtle)' : 'transparent',
             }}
             onClick={() => onSelect(el.id)}
           >

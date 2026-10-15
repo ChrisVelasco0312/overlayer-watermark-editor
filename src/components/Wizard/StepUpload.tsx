@@ -177,13 +177,13 @@ export function StepUpload() {
           flex: '0 0 auto',
           borderStyle: 'dashed',
           borderWidth: 2,
-          borderColor: dragging ? 'var(--mantine-color-orange-5)' : undefined,
-          background: dragging ? 'var(--mantine-color-orange-0)' : undefined,
+          borderColor: dragging ? 'var(--app-accent-border)' : undefined,
+          background: dragging ? 'var(--app-accent-subtle)' : undefined,
           transition: 'background 120ms ease',
         }}
       >
         <Stack align="center" gap="md" py="md">
-          <ThemeIcon size={64} radius="xl" variant="light" color="orange">
+          <ThemeIcon size={64} radius="xl" variant="light" color="teal">
             <IconUpload size={34} />
           </ThemeIcon>
           <Text size="lg" fw={500} ta="center">

@@ -11,6 +11,25 @@ body {
   color: var(--mantine-color-text);
 }
 
+/* Variables de la app que cambian con el esquema de color (claro/oscuro). */
+:root {
+  --app-surface: var(--mantine-color-white);
+  --app-surface-border: var(--mantine-color-gray-3);
+  --app-accent-border: var(--mantine-color-teal-6);
+  --app-accent-subtle: var(--mantine-color-teal-0);
+  --app-checkerboard-square: #e9ecef;
+  --app-checkerboard-bg: #f8f9fa;
+}
+
+[data-mantine-color-scheme='dark'] {
+  --app-surface: var(--mantine-color-dark-7);
+  --app-surface-border: var(--mantine-color-dark-4);
+  --app-accent-border: var(--mantine-color-teal-5);
+  --app-accent-subtle: rgba(32, 201, 151, 0.15);
+  --app-checkerboard-square: var(--mantine-color-dark-5);
+  --app-checkerboard-bg: var(--mantine-color-dark-7);
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -42,11 +61,11 @@ body {
 /* Damero detrás del lienzo para ver los bordes de la foto. */
 .canvas-checkerboard {
   background-image:
-    linear-gradient(45deg, #e9ecef 25%, transparent 25%),
-    linear-gradient(-45deg, #e9ecef 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #e9ecef 75%),
-    linear-gradient(-45deg, transparent 75%, #e9ecef 75%);
+    linear-gradient(45deg, var(--app-checkerboard-square) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--app-checkerboard-square) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--app-checkerboard-square) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--app-checkerboard-square) 75%);
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
-  background-color: #f8f9fa;
+  background-color: var(--app-checkerboard-bg);
 }
