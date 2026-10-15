@@ -10,6 +10,7 @@ import { StepEditor } from './components/Wizard/StepEditor';
 import { StepExport } from './components/Wizard/StepExport';
 import { Dashboard } from './components/Dashboard/Dashboard';
 import { isTauri } from './tauri/bridge';
+import { invoke } from '@tauri-apps/api/core';
 
 const isDev = Boolean((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV);
 
@@ -31,6 +32,12 @@ function LayoutDiagnostics() {
         `upload ${widthOf('.upload-layout')} · card ${widthOf('.upload-dropzone')}`,
         `font ${rootStyle.fontSize} · zoom ${rootStyle.getPropertyValue('zoom') || 'normal'}`,
       ].join('\n'));
+      if (isDev) {
+        document.title = `DIAG ${window.innerWidth}x${window.innerHeight} dpr:${window.devicePixelRatio}`;
+      }
+      void invoke('log_layout', {
+        msg: `viewport ${window.innerWidth}x${window.innerHeight} · dpr ${window.devicePixelRatio} · client w ${document.documentElement.clientWidth}`,
+      }).catch(() => undefined);
     };
 
     measure();
@@ -75,7 +82,7 @@ function Shell() {
     <div className="app-shell">
       <Header />
       {state.busy && <Progress value={100} animated striped radius={0} />}
-      <Container size="xl" w="100%" py="md" className="app-content">
+      <Container size="xl" w="100%" pt="xl" pb="lg" className="app-content">
         {showUpload ? (
           <StepUpload />
         ) : state.step === 'edit' ? (

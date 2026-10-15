@@ -70,9 +70,20 @@
             export PLAYWRIGHT_LAUNCH_OPTIONS_EXECUTABLE_PATH="${playwrightBrowsers}/chromium-${chromiumRev}/chrome-linux64/chrome"
 
             # Compatibilidad WebKit en NixOS: evita pantallas negras / crashes
-            # en determinadas GPUs y drivers.
+            # en GPUs Nvidia.
             export WEBKIT_DISABLE_COMPOSITING_MODE=1
             export WEBKIT_DISABLE_DMABUF_RENDERER=1
+            # WebKitGTK + Wayland + Nvidia provoca "Error 71 (Protocol error)
+            # dispatching to Wayland display" y DPR incorrecto (1/96);
+            # forzamos XWayland.
+            export GDK_BACKEND=x11
+
+            # GIO busca los schemas GSettings en <dataDir>/glib-2.0/schemas,
+            # pero nixpkgs los instala en share/gsettings-schemas/<name>/...
+            # (el hook de glib los lista en GSETTINGS_SCHEMAS_PATH). Sin esto,
+            # el file chooser GTK crashea con
+            # "No GSettings schemas are installed on the system".
+            export GSETTINGS_SCHEMA_DIR="$(echo "$GSETTINGS_SCHEMAS_PATH" | tr ':' '\n' | while IFS= read -r d; do printf '%s/glib-2.0/schemas:' "$d"; done | sed 's/:$//')"
 
             echo "Entorno Overlayer listo."
             echo "  Node:  $(node --version)"

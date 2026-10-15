@@ -13,8 +13,6 @@ import { notifications } from '@mantine/notifications';
 import {
   IconArrowBackUp,
   IconArrowForwardUp,
-  IconArrowRight,
-  IconLayoutDashboard,
   IconMaximize,
   IconPhotoPlus,
   IconTextSize,
@@ -22,7 +20,7 @@ import {
   IconZoomIn,
   IconZoomOut,
 } from '@tabler/icons-react';
-import { OverlayCanvas, type TransformMode } from '../OverlayCanvas/OverlayCanvas';
+import { OverlayCanvas, type TransformMode, type ViewportPan } from '../OverlayCanvas/OverlayCanvas';
 import { OverlayInspector } from '../OverlayInspector/OverlayInspector';
 import { useEditingContext, useProjectStore } from '../../state/projectStore';
 import type { Id, OverlayElement, OverlayTemplate } from '../../types/overlay';
@@ -41,6 +39,7 @@ export function StepEditor() {
   const [selectedId, setSelectedId] = useState<Id | null>(null);
   const [transformMode, setTransformMode] = useState<TransformMode>('scale');
   const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState<ViewportPan>({ x: 0, y: 0 });
 
   // Historial lineal: stack[index] es el estado actual conocido.
   const [stack, setStack] = useState<OverlayTemplate[]>(() =>
@@ -86,6 +85,19 @@ export function StepEditor() {
     setIndex(index + 1);
   }, [stack, index, dispatch]);
 
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setZoom((z) => Math.max(0.25, Math.round((z - 0.25) * 100) / 100));
+  }, []);
+
+  const zoomIn = useCallback(() => {
+    setZoom((z) => Math.min(8, Math.round((z + 0.25) * 100) / 100));
+  }, []);
+
   // Cambios externos (p. ej. cambio de foto) reinician el historial.
   useEffect(() => {
     if (template) {
@@ -93,6 +105,7 @@ export function StepEditor() {
       setStack([cloneTemplate(template)]);
       setIndex(0);
       setSelectedId(null);
+      resetView();
     }
     // Solo al montar / cambiar de foto (el paso de edición se remonta cada vez).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -264,7 +277,7 @@ export function StepEditor() {
             size="md"
             variant="subtle"
             color="gray"
-            onClick={() => setZoom((z) => Math.max(0.5, Math.round((z - 0.25) * 100) / 100))}
+            onClick={zoomOut}
             aria-label="Alejar"
           >
             <IconZoomOut size={17} />
@@ -273,7 +286,7 @@ export function StepEditor() {
             size="md"
             variant="subtle"
             color="gray"
-            onClick={() => setZoom(1)}
+            onClick={resetView}
             aria-label="Ajustar"
           >
             <IconMaximize size={17} />
@@ -282,53 +295,24 @@ export function StepEditor() {
             size="md"
             variant="subtle"
             color="gray"
-            onClick={() => setZoom((z) => Math.min(4, Math.round((z + 0.25) * 100) / 100))}
+            onClick={zoomIn}
             aria-label="Acercar"
           >
             <IconZoomIn size={17} />
           </ActionIcon>
 
-          <Button
-            size="xs"
-            variant={transformMode === 'rotate' ? 'filled' : 'default'}
-            onClick={() =>
-              setTransformMode((m) => (m === 'scale' ? 'rotate' : 'scale'))
-            }
-          >
-            {transformMode === 'scale' ? 'Escalar' : 'Rotar'}
-          </Button>
         </Group>
 
         <Group gap="xs">
           <Badge color={isLinked ? 'blue' : 'grape'} variant="light">
             {isLinked ? `Vinculada · plantilla de ${linkedCount}` : 'Individual'}
           </Badge>
-          <Button
-            size="xs"
-            variant="default"
-            leftSection={<IconLayoutDashboard size={14} />}
-            onClick={() => {
-              dispatch({ type: 'markEdited' });
-              dispatch({ type: 'step', step: 'review' });
-            }}
-          >
-            Dashboard
-          </Button>
-          <Button
-            size="xs"
-            leftSection={<IconArrowRight size={14} />}
-            onClick={() => {
-              dispatch({ type: 'markEdited' });
-              dispatch({ type: 'step', step: 'review' });
-            }}
-          >
-            Revisar lote
-          </Button>
         </Group>
       </Group>
 
       <Text size="xs" c="dimmed">
         Edita <b>{photo.fileName}</b> — doble clic alterna escala ↔ rotación; arrastra para mover.
+        Rueda para zoom; arrastra el fondo (o mantén Espacio / botón central) para desplazar.
         {isLinked
           ? ' Los cambios se aplican a todas las fotos vinculadas.'
           : ' Esta foto tiene plantilla propia (desvinculada).'}
@@ -341,8 +325,11 @@ export function StepEditor() {
           selectedId={selectedId}
           transformMode={transformMode}
           zoom={zoom}
+          pan={pan}
           onSelect={setSelectedId}
           onToggleMode={() => setTransformMode((m) => (m === 'scale' ? 'rotate' : 'scale'))}
+          onPanChange={setPan}
+          onZoomChange={setZoom}
           onChange={applyTemplate}
           onCommit={commit}
         />

@@ -34,9 +34,9 @@ export function Header() {
   return (
     <header
       style={{
-        borderBottom: '1px solid var(--mantine-color-default-border)',
         background: 'var(--mantine-color-white)',
-        padding: '10px 20px 0',
+        padding: '10px 20px 16px',
+        borderBottom: '1px solid var(--mantine-color-gray-3)',
       }}
     >
       <Group justify="space-between" wrap="wrap" mb={6}>
