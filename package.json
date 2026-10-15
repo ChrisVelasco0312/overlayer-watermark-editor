@@ -5,6 +5,7 @@
   "description": "Editor de marcas de agua para una o varias fotos (overlay de texto e imágenes).",
   "author": "Christian Velasco",
   "type": "module",
+  "packageManager": "pnpm@11.27.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

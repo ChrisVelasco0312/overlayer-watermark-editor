@@ -1,12 +1,13 @@
 # Commands
-- Install (NixOS dev shell first): `nix develop` then `npm install`
-- Frontend dev server: `npm run dev` (port 1420)
-- Desktop dev (Tauri): `npm run tauri:dev`
-- Frontend build + type-check: `npm run build`
-- Type-check only: `npm run typecheck`
-- Lint: `npm run lint`
-- Desktop bundle: `npm run tauri:build`
-- Generate Tauri icons: `npm run tauri icon public/logo_transparent.png`
+- Package manager: **pnpm** (pin in `package.json` `packageManager` field; commit `pnpm-lock.yaml`).
+- Install (NixOS dev shell first): `nix develop` then `pnpm install`
+- Frontend dev server: `pnpm dev` (port 1420)
+- Desktop dev (Tauri): `pnpm tauri:dev`
+- Frontend build + type-check: `pnpm build`
+- Type-check only: `pnpm typecheck`
+- Lint: `pnpm lint`
+- Desktop bundle: `pnpm tauri:build`
+- Generate Tauri icons: `pnpm tauri icon public/logo_transparent.png`
 
 # Architecture
 - Desktop app: **React 19 + TypeScript + Vite + Tauri v2**.
